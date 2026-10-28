@@ -1,0 +1,222 @@
+import 'package:flutter/material.dart';
+import 'package:page_flip/page_flip.dart'; // Moteur pour l'effet de pliage de page 3D
+
+void main() {
+  runApp(const SynoComicApp());
+}
+
+class SynoComicApp extends StatelessWidget {
+  const SynoComicApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'SynoComic',
+      debugShowCheckedModeBanner: false,
+      // Thème sombre immersif
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        primaryColor: const Color(0xFF1E88E5),
+        cardColor: const Color(0xFF1E1E1E),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1A1A1A),
+          elevation: 0,
+        ),
+      ),
+      home: const MainLibraryScreen(),
+    );
+  }
+}
+
+// Écran principal : Bibliothèque avec bascule Grille / Liste
+class MainLibraryScreen extends StatefulWidget {
+  const MainLibraryScreen({super.key});
+
+  @override
+  State<MainLibraryScreen> createState() => _MainLibraryScreenState();
+}
+
+class _MainLibraryScreenState extends State<MainLibraryScreen> {
+  bool isGridView = true; // Bascule Grille / Liste
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Ma Bédéthèque', style: TextStyle(fontWeight: FontWeight.bold)),
+        actions: [
+          // Bouton bascule Grille / Liste
+          IconButton(
+            icon: Icon(isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded),
+            tooltip: isGridView ? 'Vue Liste' : 'Vue Grille',
+            onPressed: () => setState(() => isGridView = !isGridView),
+          ),
+          // Bouton création manuelle de dossier
+          IconButton(
+            icon: const Icon(Icons.create_new_folder_outlined),
+            tooltip: 'Nouveau dossier',
+            onPressed: _showCreateFolderDialog,
+          ),
+          // Accès à l'explorateur Synology distant
+          IconButton(
+            icon: const Icon(Icons.cloud_download_outlined),
+            tooltip: 'Synology QuickConnect',
+            onPressed: () {
+              // Ouverture de l'explorateur QuickConnect
+            },
+          ),
+        ],
+      ),
+      body: isGridView ? _buildGridView() : _buildListView(),
+    );
+  }
+
+  void _showCreateFolderDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF242424),
+        title: const Text('Nouveau dossier'),
+        content: const TextField(
+          decoration: InputDecoration(hintText: 'Nom de la série ou collection'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Créer')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGridView() {
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3, // Adapté à l'écran de la tablette T9
+        childAspectRatio: 0.7,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: 6, // Exemple d'albums
+      itemBuilder: (context, index) => _buildComicCard(index),
+    );
+  }
+
+  Widget _buildListView() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: 6,
+      itemBuilder: (context, index) => Card(
+        color: const Color(0xFF1E1E1E),
+        margin: const EdgeInsets.only(bottom: 8),
+        child: ListTile(
+          leading: Container(
+            width: 45,
+            decoration: BoxDecoration(
+              color: Colors.grey[800],
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Icon(Icons.menu_book_rounded, color: Colors.white54),
+          ),
+          title: Text('Album ${index + 1}.cbz', style: const TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: const Text('Dernière page lue : p. 24 • Non terminé', style: TextStyle(color: Colors.white54)),
+          trailing: const Icon(Icons.chevron_right, color: Colors.white38),
+          onTap: () => _openReader(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildComicCard(int index) {
+    return GestureDetector(
+      onTap: () => _openReader(),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[850],
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                ),
+                child: const Center(child: Icon(Icons.menu_book_rounded, size: 48, color: Colors.white38)),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                'Album ${index + 1}.cbz',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openReader() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ComicReaderScreen()),
+    );
+  }
+}
+
+// Écran de Lecture avec effet Page Curl, Zoom et Marque-Page
+class ComicReaderScreen extends StatefulWidget {
+  const ComicReaderScreen({super.key});
+
+  @override
+  State<ComicReaderScreen> createState() => _ComicReaderScreenState();
+}
+
+class _ComicReaderScreenState extends State<ComicReaderScreen> {
+  final _pageFlipKey = GlobalKey<PageFlipWidgetState>();
+  int lastReadPage = 1;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black, // Plein écran noir
+      body: SafeArea(
+        child: InteractiveViewer(
+          // Zoom tactile intégré (pincer pour zoomer)
+          minScale: 1.0,
+          maxScale: 3.5,
+          child: PageFlipWidget(
+            key: _pageFlipKey,
+            backgroundColor: Colors.black,
+            // Déclenche la sauvegarde automatique du marque-page
+            onPageFlipped: (pageIndex) {
+              setState(() {
+                lastReadPage = pageIndex + 1;
+              });
+              // Sauvegarde locale de lastReadPage
+            },
+            children: List.generate(
+              30, // Pages de la BD
+              (index) => Container(
+                color: const Color(0xFF1A1A1A),
+                child: Center(
+                  child: Text(
+                    'Page ${index + 1}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 24),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
